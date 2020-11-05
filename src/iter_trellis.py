@@ -3,7 +3,7 @@ import time
 from functools import reduce
 from heapq import heappop, heappush
 from itertools import combinations
-import likelihood_invM as likelihood
+import Ginkgo_likelihood_invM as likelihood
 
 import networkx as nx
 import numpy as np

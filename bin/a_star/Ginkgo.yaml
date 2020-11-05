@@ -25,3 +25,4 @@ parameters:
     value:  "test_4_jets.pkl"
   dataset_dir:
     value: "/Users/sebastianmacaluso/Dropbox/Documents/Physics_projects/simulator/A_starTrellis/hierarchical-trellis/trellis/data/"
+#   value: "data/Ginkgo/"

@@ -6,10 +6,6 @@ import numpy as np
 import sys
 # sys.path.append('../')
 
-
-from trellis.iter_trellis import IterCCTrellis, IterJetTrellis
-from trellis.iter_trellis import all_two_partitions, k_random_2_cuts, top_k_of_n_2_cuts
-
 import wandb
 
 
@@ -17,12 +13,17 @@ from absl import flags
 from absl import logging
 from absl import app
 
+from src.iter_trellis import IterCCTrellis, IterJetTrellis
+from src.iter_trellis import all_two_partitions, k_random_2_cuts, top_k_of_n_2_cuts
+
+
+
 NleavesMin=5
 
 flags.DEFINE_integer('max_iter', 1000000000000, 'iterations')
 flags.DEFINE_integer('max_nodes', 10000000, 'nodes')
 flags.DEFINE_string('dataset', "test_" + str(NleavesMin) + "_jets.pkl", 'dataset filename')
-flags.DEFINE_string('dataset_dir', "data/", "dataset dir ")
+flags.DEFINE_string('dataset_dir', "../data/Ginkgo/", "dataset dir ")
 flags.DEFINE_string('trellis_class', 'IterJetTrellis', 'dataset file')
 flags.DEFINE_string('exp_name', 'AStar', 'name')
 flags.DEFINE_string('output', 'exp_out', 'output directory')
