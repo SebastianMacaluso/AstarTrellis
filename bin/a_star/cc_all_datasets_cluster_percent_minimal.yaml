@@ -1,0 +1,39 @@
+program: trellis/run_a_star_iter.py
+method: grid
+project: Astar
+parameters:
+  graph_input:
+    values: ['/Users/sebastianmacaluso/Dropbox/Documents/Physics_projects/iesl/xcluster/data/aloi.tsv']
+#    '/iesl/canvas/nmonath/research/clustering/ghhc_more_data/data/speaker/speaker.tsv',
+#    '/iesl/canvas/nmonath/research/clustering/ghhc_more_data/data/ilsvrc_50k/ilsvrc_50k.tsv',
+#    '/iesl/canvas/nmonath/research/clustering/ghhc/data/covtype/covtype.tsv']
+  output:
+    value: 'exp_out'
+  trellis_class:
+    values: ['IterApprox', 'Greedy']
+  tree_num:
+    values: [0, 1, 2, 3, 4]
+  num_points:
+    values: [200]
+  child_func:
+    values: ['top_k_of_n_2_cuts']
+  num_repeated_map_values:
+    value: 3
+  graph_percent_of_points_for_classes:
+    values: [0.30]
+  graph_num_classes:
+    value: -1
+  dataset:
+    value: None
+  iter_approx_max_iter:
+    value: 0
+  search_cap_size:
+    value: 15
+  get_children_exact_size:
+    value: 2
+  get_children_k:
+    value: 2
+  get_children_n:
+    value: 2
+  get_children_num_tries:
+    value: 10

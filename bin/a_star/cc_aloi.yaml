@@ -1,0 +1,18 @@
+program: trellis/run_a_star_iter.py
+method: grid
+project: Astar
+parameters:
+  dataset:
+    value: 'data/a_star/cc_aloi_samples'
+  output:
+    value: 'exp_out'
+  trellis_class:
+    values: ['IterCCTrellis', 'Greedy', 'GreedyIterCCTrellis']
+  tree_num:
+    values: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+  num_points:
+    values: [11, 12, 15, 18, 20]
+  child_func:
+    value: 'top_k_of_n_2_cuts'
+  num_repeated_map_values:
+    value: 100

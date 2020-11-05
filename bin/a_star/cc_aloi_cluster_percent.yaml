@@ -1,0 +1,22 @@
+program: trellis/run_a_star_iter.py
+method: grid
+project: Astar
+parameters:
+  graph_input:
+    value: '/iesl/canvas/nmonath/research/clustering/rotation_clustering/data/aloi.tsv.1'
+  output:
+    value: 'exp_out'
+  trellis_class:
+    values: ['IterCCTrellis', 'Greedy', 'Greedy++']
+  tree_num:
+    values: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+  num_points:
+    values: [10, 15, 20, 30, 40, 50, 100]
+  child_func:
+    values: ['top_k_of_n_2_cuts','all_two_partitions']
+  num_repeated_map_values:
+    value: 3
+  graph_percent_of_points_for_classes:
+    values: [0.10, 0.20, 0.30, 0.40, 0.50]
+  graph_num_classes:
+    value: -1
