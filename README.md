@@ -6,14 +6,22 @@ data structures, algorithms, and experiments for MAP and Z computation for distr
 Run either
 
 ```
-python setup.py install
+make install
 ```
 
-or
+## Running a grid search with wandb sweep process"
+1. Yaml file settings:[`Ginkgo.yaml`](bin/a_star)  
+	- Set the dir for wandb (`wandb_dir`)
+	- Set the dir where the dataset is located (`dataset_dir`)
+	- Set the dataset filename (`dataset`)
+2. From the assigned directory for `wandb_dir`, run:
+	- Install wandb if necessary: `pip install wandb`
+	- `wandb login`
+	- `wandb sweep [Full path to Ginkgo.yaml]
+	- There will be a terminal output as `wandb: Run sweep agent with: wandb agent sebas/Astar/l6de8bwm`
+	  Run `wandb agent sebas/Astar/l6de8bwm`
 
-```
-export PYTHONPATH=`pwd`:$PYTHONPATH
-```
+
 
 ## Running A Star on a SLURM cluster
 
