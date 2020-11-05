@@ -3,14 +3,15 @@ data structures, algorithms, and experiments for MAP and Z computation for distr
 
 ## New code setup
 
-Run either
+Install package
 
 ```
 make install
 ```
 
-## Running a grid search with wandb sweep process"
-1. Yaml file settings:[`Ginkgo.yaml`](bin/a_star)  
+## Running a grid search with wandb sweep process
+1. YAML file settings, e.g. [`Ginkgo.yaml`](bin/a_star)  
+	- Set full path to executable under `program`, e.g. for Ginkgo jets `[full path to file/run_a_star_iter_ginkgo.py]`
 	- Set the dir for wandb (`wandb_dir`)
 	- Set the dir where the dataset is located (`dataset_dir`)
 	- Set the dataset filename (`dataset`)
