@@ -12,14 +12,14 @@ make install
 ## Running a grid search with wandb sweep process
  If the dir for wandb is inside the package, paths could be relative, else set absolute paths.
 1. YAML file settings, e.g. [`Ginkgo.yaml`](bin/a_star).  
-	- Set path to executable under `program`, e.g. for Ginkgo jets `[full path to file/run_a_star_iter_ginkgo.py]`
+	- Set path to executable under `program`, e.g. for Ginkgo jets `[path to file/run_a_star_iter_ginkgo.py]`
 	- Set the dir for wandb (`wandb_dir`)
 	- Set the dir where the dataset is located (`dataset_dir`)
 	- Set the dataset filename (`dataset`)
 2. From the assigned directory for `wandb_dir`, run:
 	- Install wandb if necessary: `pip install wandb`
 	- `wandb login`
-	- `wandb sweep [path to Ginkgo.yaml]`
+	- `wandb sweep [path to file/Ginkgo.yaml]`
 	- There will be a terminal output as `wandb: Run sweep agent with: wandb agent sebas/Astar/l6de8bwm`
 	  Run `wandb agent sebas/Astar/l6de8bwm`
 

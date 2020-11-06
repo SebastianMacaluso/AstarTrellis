@@ -1,28 +1,21 @@
-
-#Set full paths to program and dataset dir. The reason is that we set wandb dir somewhere else, so that it's not inside a Dropbox folder
-program: /Users/sebastianmacaluso/Dropbox/Documents/Physics_projects/simulator/A_starTrellis/hierarchical-trellis/trellis/run_a_star_iter_ginkgo.py
+#Set full paths to program and dataset dir. The reason is that we set wandb dir somewhere else outside of the a star package (my reason was so that wandb is not inside a Dropbox folder which was causing problems). Run from wandb dir.
+program: /Users/sebastianmacaluso/Dropbox/Documents/Physics_projects/simulator/a_star_trellis/src/run_a_star_iter_ginkgo.py
 method: grid
 project: Astar
 parameters:
-##  graph_input:
-##    values: ['/Users/sebastianmacaluso/Dropbox/Documents/Physics_projects/iesl/xcluster/data/aloi.tsv']
-###    '/iesl/canvas/nmonath/research/clustering/ghhc_more_data/data/speaker/speaker.tsv',
-###    '/iesl/canvas/nmonath/research/clustering/ghhc_more_data/data/ilsvrc_50k/ilsvrc_50k.tsv',
-###    '/iesl/canvas/nmonath/research/clustering/ghhc/data/covtype/covtype.tsv']
+  wandb_dir:
+    value: "/Users/sebastianmacaluso/Documents/A_star"
+  dataset_dir:
+    value: "/Users/sebastianmacaluso/Dropbox/Documents/Physics_projects/simulator/a_star_trellis/data/Ginkgo/"
+  #   value: "data/Ginkgo/"
+  dataset:
+    value:  "test_4_jets.pkl"
   output:
     value: 'exp_out'
   trellis_class:
     values: ['IterJetTrellis']
-#  tree_num:
-#    values: [0, 1, 2, 3, 4]
-#  num_points:
-#    values: [200]
   child_func:
     values: ['all_two_partitions']
   num_repeated_map_values:
     value: 0
-  dataset:
-    value:  "test_4_jets.pkl"
-  dataset_dir:
-    value: "/Users/sebastianmacaluso/Dropbox/Documents/Physics_projects/simulator/A_starTrellis/hierarchical-trellis/trellis/data/"
-#   value: "data/Ginkgo/"
+

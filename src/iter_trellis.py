@@ -270,8 +270,8 @@ class IterTrellis(object):
 
     def pop(self, i):
         # Pop from the priority queue, from entry i
-        if i == 17:
-            print(self.pq[i])
+        # if i == 17:
+        #     print(self.pq[i])
         f, g, h, ch_l, ch_r = heappop(self.pq[i])
         #
         if not self.propagate_values_up:
@@ -339,6 +339,7 @@ class IterTrellis(object):
         :return: parent2children - parent2children map
         """
         logging.debug('Getting current state.')
+        # Start from the root
         travel = [self.root]
         hc = []
         internals = []
@@ -472,6 +473,9 @@ class IterTrellis(object):
         :return:
 
         """
+        # logging.info('-------')
+        # logging.info('node = %s, elem=%s', str(i),str(elems))
+        # logging.info('-------')
         ch = self.get_children(i, elems)
         logging.debug('initialize node %s with %s children', i, len(ch))
 
@@ -488,10 +492,16 @@ class IterTrellis(object):
                 else:
                     h += self.h_fun(ch_i)
                 logging.debug('Update of initialize node %s with children %s and %s | f %s | g %s | h %s', i, ch_l, ch_r, g + h, g, h)
+                # if len(elems)==2 and h!=0:
+            #     logging.info('+++++++++')
+            #     logging.info('h_i = %s , h = %s, ch = %s, elem = %s',str(self.h_fun(ch_i)),str(h), str(ch_i), str(self.clusters[ch_i]))
+            # logging.info('+=+=+=+=+=+=+=+=')
 
-            self.explored[i] = True  # Should this be outside the for loop? SM
+            # self.explored[i] = True  # Should this be outside the for loop? SM
             # heappush(self.pq[i], (g + h, g, h, ch_l, ch_r))
             self.push(i, (g + h, g, h, ch_l, ch_r))
+        if len(elems)>1: #We can't set the leaves as explored, as we don't initialize a pq for them
+            self.explored[i] = True  # Should this be outside the for loop? SM
 
     def update_from_children(self, p, children):
         """Update the parents priority queue.
@@ -501,6 +511,9 @@ class IterTrellis(object):
         :return:
         """
         logging.debug('update %s from the children %s', p, str(children))
+        logging.debug('-------==============-------')
+        logging.debug('Before update p=%s | f,g,h,ch_l,ch_r =%s  ',
+                     p,  str(self.pq[p][0]))
         # print('update %s from the children %s' % (p, str(children)))
         ch_l, ch_r = children
         g = self.g_fun(ch_l, ch_r)
@@ -520,6 +533,9 @@ class IterTrellis(object):
         self.pop(p)
         # print('pushing p, cl_p, f, g, h, cl, cr', p, self.clusters[p], g + h, g, h, ch_l, ch_r)
         # print()
+        logging.debug('p=%s | f=%s | g=%s | h=%s | ch_l=%s | ch_r=%s ',
+                     p,  g+h, g, h, ch_l, ch_r)
+        logging.debug('-------==============-------')
         self.push(p, (g + h, g, h, ch_l, ch_r))
 
     def _execute_search(self, max_steps=np.Inf):
@@ -543,10 +559,19 @@ class IterTrellis(object):
                 f = -1  # something that is not zero
                 g = -1  # something that is not zero
                 h = -1  # something that is not zero
+
             hc, internals, lvs, parent2child = self.get_state()
             is_goal_state = self.is_goal_state(hc, internals, lvs)
+            logging.debug("-------------------------------------------")
+
             if is_goal_state and h != 0:
-                logging.info('At goal state, but h is not zero!')
+                logging.debug('At goal state, but h is not zero!')
+                logging.debug('leaves:\n%s', lvs)
+                logging.debug('hc:\n%s', '\n'.join([str((x, self.clusters[x])) for x in hc]))
+                logging.debug('Step=%s | num_leaves=%s | max_leaves_so_far=%s | f=%s | g=%s | h=%s',
+                             step, len(lvs),
+                             most_leaves, f, g, h)
+
                 # print()
                 # for x in hc:
                 #     try:
@@ -558,9 +583,10 @@ class IterTrellis(object):
                 # return None, None
                 # print('hc:\n%s' % '\n'.join([str((x, self.clusters[x])) for x in hc]))
                 # print('g,h:\n%s' % '\n'.join([str((self.pq[x][0])) for x in hc]))
+
             if is_goal_state and h == 0:
                 logging.info('Reached goal state!')
-                logging.info('leaves: %s', str(lvs))
+                # logging.debug('leaves: %s', str(lvs))
                 # print('top of root:\n%s' % '\n'.join([str(len(self.pq[self.root])) for i in range(10)]))
                 # print('top of root:\n%s' % '\n'.join([str(self.pq[self.root][i]) for i in range(min(10, len(self.pq[self.root])))]))
 
@@ -580,25 +606,27 @@ class IterTrellis(object):
                 # print('171717', self.clusters[17], self.pq[17], self.children[17])
                 assert f == g
                 assert h == 0
-                return hc, f
+                return hc, f, step
             most_leaves = max(len(lvs), most_leaves)
 
-            # 2. Explore the leaves and initialize them
+            # 2. Explore the leaves and initialize them. If len(elements)==1 then do not do anything
             for l in lvs:
+                # logging.info('Exploring leaves: %s', str(lvs))
                 elements = self.clusters[l]
                 assert len(elements) > 0
                 self.initialize(l, elements)
 
-            # 3. Update the internals. Do we update level by level, adding the children value of g to the parent? And then moving to the next level up? YES! SM
+            # 3. Update the internals. We update level by level, adding the children value of g to the parent? And then moving to the next level up.
             for i in range(len(internals) - 1, -1, -1):
                 # if the node is not a leaf node in the partial hierarchical clustering
                 if internals[i] in parent2child:
+                    # logging.info('internals[i]: %s', str(internals[i]))
                     self.update_from_children(internals[i], parent2child[internals[i]])
 
             # logging.
             en_t = time.time()
             time_sum += en_t - st_t
-            logging.log_every_n(logging.INFO,
+            logging.log_every_n(logging.DEBUG,
                                 'Step=%s | num_nodes=%s | num_internals=%s | num_leaves=%s | max_leaves_so_far=%s | f=%s | g=%s | h=%s',
                                 1, step, len(hc), len(internals), len(lvs),
                                 most_leaves, f, g, h)
@@ -909,7 +937,7 @@ class IterTrellis(object):
         :return: hc, f - the clustering and f values
         """
 
-        hc, f = self._execute_search(max_steps)
+        hc, f , steps = self._execute_search(max_steps)
         logging.info('RESULT -- f: %s -- round %s', f, 1)
         wandb.log({"search_f": f, "search_i": 1})
 
@@ -921,7 +949,7 @@ class IterTrellis(object):
             self.current_extension_num = i
             # self.reset()
             self.extend_hc_alt()   # This resets values but doesn't extend search
-            hc, f_i = self._execute_search(max_steps=max_steps)
+            hc, f_i, steps = self._execute_search(max_steps=max_steps)
             logging.info('RESULT -- f: %s -- round %s', f_i, i)
             wandb.log({"search_f": f_i, "search_i": i+1})
             if f == f_i:
@@ -933,7 +961,7 @@ class IterTrellis(object):
             # print('after %s times extending and then re-executing search, f value is %s' % (i, f))
             # logging.info('after %s times extending and then re-executing search, f value is $s', i, f)
         ## return the final hc, f
-        return hc, f
+        return hc, f, steps
 
 
 class IterCCTrellis(IterTrellis):
@@ -1067,7 +1095,7 @@ class IterJetTrellis(IterTrellis):
             # print("len(self.children[i]) == 0 ? =",len(self.children[ch_i]))
             # print("len(self.pq[i])  == 0?=", len(self.pq[ch_i]))
 
-        # if not self.is_leaf(ch_i):
+             # if not self.is_leaf(ch_i):
             # print('Is leaf', self.is_leaf(ch_i))
             # print("elements", elements)
             upper_bound = self.upperBoundInners(elements) + self.upperBoundOuters(elements)
@@ -1165,6 +1193,8 @@ class IterJetTrellis(IterTrellis):
 
         llh = -np.log(1 - np.exp(- lam)) + np.log(lam) - np.log(t_min) - lam * t_min / subjetMass2
 
-        llhRoot = -np.log(1 - np.exp(- lamRoot)) + np.log(lamRoot) - np.log(subjetMass2) - lamRoot * t_min / subjetMass2
+        # if elements == self.clusters[self.root]:
+        #     llhRoot = -np.log(1 - np.exp(- lamRoot)) + np.log(lamRoot) - np.log(subjetMass2) - lamRoot * t_min / subjetMass2
 
-        return llhRoot + (len(leaves) - 2) * llh + (Nleaves - 1) * np.log(1 / (4 * np.pi))
+        # return llhRoot + (len(leaves) - 2) * llh + (Nleaves - 1) * np.log(1 / (4 * np.pi))
+        return (len(leaves) - 2) * ( llh + np.log(1 / (4 * np.pi)) )
