@@ -1,5 +1,5 @@
-# hierarchical-trellis
-data structures, algorithms, and experiments for MAP and Z computation for distribution of hierarchical clustering
+# A star & Trellis Algorithm for Hierarchical Clustering
+Data structures, algorithms, and experiments for MAP and Z computation for hierarchical clustering
 
 ## New code setup
 
