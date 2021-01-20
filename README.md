@@ -27,7 +27,6 @@ make install
 
 ## Running A Star on a SLURM cluster
 
-
 There is a yaml file [bin/a_star/cc_aloi.yaml] that we will use.
 
 First run:
