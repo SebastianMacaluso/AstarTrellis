@@ -1,12 +1,12 @@
 #Set full paths to program and dataset dir. The reason is that we set wandb dir somewhere else outside of the a star package (my reason was so that wandb is not inside a Dropbox folder which was causing problems). Run from wandb dir.
-program: /Users/sebastianmacaluso/Dropbox/Documents/Physics_projects/simulator/a_star_trellis/src/run_a_star_iter_ginkgo.py
+program: /Users/sebastianmacaluso/Dropbox/Documents/Physics_projects/simulator/AstarTrellis/src/AstarTrellis/run_a_star_iter_ginkgo.py
 method: grid
 project: Astar
 parameters:
   wandb_dir:
     value: "/Users/sebastianmacaluso/Documents/A_star"
   dataset_dir:
-    value: "/Users/sebastianmacaluso/Dropbox/Documents/Physics_projects/simulator/a_star_trellis/data/Ginkgo/"
+    value: "/Users/sebastianmacaluso/Dropbox/Documents/Physics_projects/simulator/AstarTrellis/data/Ginkgo/"
   #   value: "data/Ginkgo/"
   dataset:
     value:  "test_4_jets.pkl"

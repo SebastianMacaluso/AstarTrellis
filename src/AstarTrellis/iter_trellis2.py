@@ -3,7 +3,7 @@ import time
 from functools import reduce
 from heapq import heappop, heappush
 from itertools import combinations
-import Ginkgo_likelihood_invM as likelihood
+from . import Ginkgo_likelihood_invM as likelihood
 
 import networkx as nx
 import numpy as np
@@ -12,7 +12,7 @@ from absl import logging
 from scipy.sparse import lil_matrix
 
 logging.set_verbosity(logging.INFO)
-
+"""iter trellis, where we don't need to update nodes pq. Only update the root pq"""
 
 # https://stackoverflow.com/questions/4941753/is-there-a-math-ncr-function-in-python
 def ncr(n, r):
@@ -140,6 +140,7 @@ def cartesian_product(*arrays):
 class IterTrellis(object):
 
     def __init__(self, max_nodes, propagate_values_up):
+        pClass_st = time.time()
         # children[i] gives the kids of node i
         self.children = [[] for _ in range(max_nodes)]
         self.mapv = np.zeros(max_nodes, dtype=np.float32) # MAP vertices
@@ -159,6 +160,9 @@ class IterTrellis(object):
             self.parents = [[] for _ in range(max_nodes)]
             self.up_to_date_fgh = [{} for _ in range(max_nodes)]  # [i] -> {(c_l, c_r) -> f,g,h}
             self.values_on_q = [{} for _ in range(max_nodes)]  # [i] -> {(c_l, c_r) -> queue([f_j,g_j,h_j,...])}
+
+        pClass_en_t = time.time()- pClass_st
+        logging.info('Loading Parent class time: %s', pClass_en_t)
 
     def load_from_tree(self, tree, hc):
         """Not implemented for Ginkgo Jets"""
@@ -345,6 +349,8 @@ class IterTrellis(object):
         internals = []
         lvs = []
         parent2children = dict()
+        temp_g = 0
+        temp_h=0
         while travel:
             i = travel.pop()
             hc.append(i)
@@ -353,18 +359,22 @@ class IterTrellis(object):
             if self.is_leaf(i): # leaf at current state
                 logging.debug('visiting node %s - is leaf', i)
                 lvs.append(i)
+                if len(self.clusters[i]) > 1:
+                    temp_h += self.h_fun(i)
+
             else:
                 logging.debug('visiting node %s - is iternal', i)
                 internals.append(i)
             if self.explored[i]:
-                a, b = self.walk_down(i)
+                g, a, b = self.walk_down(i)
                 logging.debug('visiting node %s - has kids %s and %s', i, a, b)
                 parent2children[i] = [a, b]
                 self.memoize_if_needed(i)
                 travel.append(a)
                 travel.append(b)
+                temp_g+= self.g_fun(a, b)
 
-        return hc, internals, lvs, parent2children
+        return hc, internals, lvs, parent2children, temp_g , temp_h
 
     def memoize_if_needed(self, i):
         """Memoize the values of i if we know them.
@@ -404,10 +414,10 @@ class IterTrellis(object):
         """
         if self.arg_mapv[i] and self.last_memoized[i] == self.current_extension_num:
             logging.debug('walking down %s hit mapv', i)
-            return self.arg_mapv[i]
+            return self.mapv[i], self.arg_mapv[i][0],  self.arg_mapv[i][1]
         else:
             f, g, h, a, b = self.pq[i][0]
-            return a, b
+        return g,a, b
 
     def record_node(self, elements: frozenset) -> int:
         """Get the node corresponding to the given elements, create new id if needed.
@@ -500,8 +510,8 @@ class IterTrellis(object):
             # self.explored[i] = True  # Should this be outside the for loop? SM
             # heappush(self.pq[i], (g + h, g, h, ch_l, ch_r))
             self.push(i, (g + h, g, h, ch_l, ch_r))
-        if len(elems)>1: #We can't set the leaves as explored, as we don't initialize a pq for them
-            self.explored[i] = True  # Should this be outside the for loop? SM
+        # if len(elems)>1: #We can't set the leaves as explored, as we don't initialize a pq for them
+        self.explored[i] = True  # Should this be outside the for loop? SM
 
     def update_from_children(self, p, children):
         """Update the parents priority queue.
@@ -549,6 +559,10 @@ class IterTrellis(object):
         step = 0
         most_leaves = 0
         time_sum = 0
+        time_sum1 =0
+        time_sum2 = 0
+        time_sum3 = 0
+
         while True:
             st_t = time.time()
 
@@ -560,9 +574,12 @@ class IterTrellis(object):
                 g = -1  # something that is not zero
                 h = -1  # something that is not zero
 
-            hc, internals, lvs, parent2child = self.get_state()
+            hc, internals, lvs, parent2child, temp_g, temp_h = self.get_state()
             is_goal_state = self.is_goal_state(hc, internals, lvs)
+            # logging.info(" parent2child 0 = %s", parent2child)
             logging.debug("-------------------------------------------")
+
+            st_t1 = time.time()
 
             if is_goal_state and h != 0:
                 logging.debug('At goal state, but h is not zero!')
@@ -571,6 +588,15 @@ class IterTrellis(object):
                 logging.debug('Step=%s | num_leaves=%s | max_leaves_so_far=%s | f=%s | g=%s | h=%s',
                              step, len(lvs),
                              most_leaves, f, g, h)
+
+
+                if (temp_g + temp_h) > f:
+                    self.pop(self.root)
+                    logging.info(" temp_g = %s | temp_h = %s", temp_g, temp_h)
+                    # logging.info("Root children = %s", self.pq[self.root][0])
+                    _, _, _, ch_l, ch_r = self.pq[self.root][0]
+                    # ch_l, ch_r =parent2child[self.root]
+                    self.push(self.root, (temp_g + temp_h, temp_g, temp_h, ch_l, ch_r))
 
                 # print()
                 # for x in hc:
@@ -584,8 +610,14 @@ class IterTrellis(object):
                 # print('hc:\n%s' % '\n'.join([str((x, self.clusters[x])) for x in hc]))
                 # print('g,h:\n%s' % '\n'.join([str((self.pq[x][0])) for x in hc]))
 
-            if is_goal_state and h == 0:
+            elif is_goal_state and h == 0:
                 logging.info('Reached goal state!')
+
+                # wandb.log({'num_leaves': len(lvs), 'max_leaves_so_far': most_leaves,
+                #            'total_time': time_sum, 'avg_time_per_step': time_sum / (step + 1),
+                #            'steps': step})
+
+
                 # logging.debug('leaves: %s', str(lvs))
                 # print('top of root:\n%s' % '\n'.join([str(len(self.pq[self.root])) for i in range(10)]))
                 # print('top of root:\n%s' % '\n'.join([str(self.pq[self.root][i]) for i in range(min(10, len(self.pq[self.root])))]))
@@ -599,42 +631,94 @@ class IterTrellis(object):
 
                 # print('hcXXXHC: %s' % '\n'.join(hc))
 
-                logging.info('hc:\n%s', '\n'.join([str((x, self.clusters[x])) for x in hc]))
-                logging.info('Step=%s | num_leaves=%s | max_leaves_so_far=%s | f=%s | g=%s | h=%s',
-                             step, len(lvs),
-                             most_leaves, f, g, h)
-                # print('171717', self.clusters[17], self.pq[17], self.children[17])
-                assert f == g
-                assert h == 0
-                return hc, f, step
-            most_leaves = max(len(lvs), most_leaves)
 
-            # 2. Explore the leaves and initialize them. If len(elements)==1 then do not do anything
-            for l in lvs:
-                # logging.info('Exploring leaves: %s', str(lvs))
-                elements = self.clusters[l]
-                assert len(elements) > 0
-                self.initialize(l, elements)
+                # 3. Update the internals. We update level by level, adding the children value of g to the parent? And then moving to the next level up.
+                for i in range(len(internals) - 1, -1, -1):
+                    # if the node is not a leaf node in the partial hierarchical clustering
+                    if internals[i] in parent2child:
+                        # logging.info('internals[i]: %s', str(internals[i]))
+                        self.update_from_children(internals[i], parent2child[internals[i]])
 
-            # 3. Update the internals. We update level by level, adding the children value of g to the parent? And then moving to the next level up.
-            for i in range(len(internals) - 1, -1, -1):
-                # if the node is not a leaf node in the partial hierarchical clustering
-                if internals[i] in parent2child:
-                    # logging.info('internals[i]: %s', str(internals[i]))
-                    self.update_from_children(internals[i], parent2child[internals[i]])
+                f, g, h, _, _ = self.pq[self.root][0]
+                hc, internals, lvs, parent2child, temp_g, temp_h = self.get_state()
+                is_goal_state = self.is_goal_state(hc, internals, lvs)
+
+                if is_goal_state and h == 0:
+                    logging.info('Reached goal state again!')
+
+
+                    logging.info('hc:\n%s', '\n'.join([str((x, self.clusters[x])) for x in hc]))
+                    logging.info('Step=%s | num_leaves=%s | max_leaves_so_far=%s | f=%s | g=%s | h=%s',
+                                 (step+1), len(lvs),
+                                 most_leaves, f, g, h)
+                    # print('171717', self.clusters[17], self.pq[17], self.children[17])
+                    assert f == g
+                    assert h == 0
+                    return hc, f, step
+            # most_leaves = max(len(lvs), most_leaves)
+
+            else:
+                most_leaves = max(len(lvs), most_leaves)
+            # logging.info(" parent2child before = %s", parent2child)
+            # f, _,_ , _, _  = self.pq[self.root][0]
+            # temp_f = temp_g + temp_h
+            # if is_goal_state and (temp_g + temp_h) > f:
+            #     self.pop(self.root)
+            #     # logging.info(" parent2child = %s", parent2child)
+            #     # logging.info("Root children = %s", self.pq[self.root][0])
+            #     _,_,_, ch_l, ch_r = self.pq[self.root][0]
+            #     # ch_l, ch_r =parent2child[self.root]
+            #     self.push(self.root, (temp_g + temp_h, temp_g , temp_h, ch_l, ch_r))
+            # else:
+                # 2. Explore the leaves and initialize them. If len(elements)==1 then do not do anything
+                for l in lvs:
+                    # logging.info('Exploring leaves: %s', str(lvs))
+                    elements = self.clusters[l]
+                    assert len(elements) > 0
+                    if len(elements) > 1:
+                        self.initialize(l, elements)
+
+                st_t2 = time.time()
+
+
+                # 3. Update the internals. We update level by level, adding the children value of g to the parent? And then moving to the next level up.
+                for i in range(len(internals) - 1, -1, -1):
+                    # if the node is not a leaf node in the partial hierarchical clustering
+                    if internals[i] in parent2child:
+                        # logging.info('internals[i]: %s', str(internals[i]))
+                        self.update_from_children(internals[i], parent2child[internals[i]])
 
             # logging.
             en_t = time.time()
             time_sum += en_t - st_t
+            time_sum1 += st_t1 - st_t
+            # if temp_f <= f:
+            #     time_sum2 += st_t2- st_t1
+            #     time_sum3 += en_t - st_t2
+
+
+            temp_f = temp_g + temp_h
             logging.log_every_n(logging.DEBUG,
                                 'Step=%s | num_nodes=%s | num_internals=%s | num_leaves=%s | max_leaves_so_far=%s | f=%s | g=%s | h=%s',
                                 1, step, len(hc), len(internals), len(lvs),
                                 most_leaves, f, g, h)
-            if step % 10 == 0:
-                wandb.log({'num_leaves': len(lvs), 'max_leaves_so_far': most_leaves,
-                           'total_time': time_sum, 'step_time': en_t - st_t, 'avg_time_per_step': time_sum / (step + 1),
-                           'steps': step})
+            if step % 100 == 0:
+                # wandb.log({'num_leaves': len(lvs), 'max_leaves_so_far': most_leaves,
+                #            'total_time': time_sum, 'step_time': en_t - st_t, 'avg_time_per_step': time_sum / (step + 1),
+                #            'steps': step})
+                # logging.info('steps= %s | total_time = %s | step_time = %s | avg_time_per_step = %s |  t1=%s | t2 = %s | t3 =%s', step, time_sum, en_t - st_t, time_sum / (step + 1), st_t1 - st_t, st_t2-st_t1, en_t-st_t2)
+                if temp_f <= f:
+                    logging.info(
+                    'steps= %s | total_time = %s | avg_time_per_step so far = %s |  avg t1=%s | avg t2 = %s | avgt3 =%s',
+                    step, time_sum, time_sum / (step + 1), time_sum1/ (step + 1), time_sum2/ (step + 1) , time_sum3/ (step + 1))
+                else:
+                    logging.info(
+                        'steps= %s | total_time = %s | avg_time_per_step so far = %s |  avg t1=%s ',
+                        step, time_sum, time_sum / (step + 1), time_sum1 / (step + 1))
+
             step += 1
+
+
 
     def extend(self, i, elems):
         """Extend the node i.
@@ -939,7 +1023,7 @@ class IterTrellis(object):
 
         hc, f , steps = self._execute_search(max_steps)
         logging.info('RESULT -- f: %s -- round %s', f, 1)
-        wandb.log({"search_f": f, "search_i": 1})
+        # wandb.log({"search_f": f, "search_i": 1})
 
         ## if num_matches < 0, extend the trellis and then re-run A* until halting condition is met
         ctr = 0
@@ -1030,6 +1114,7 @@ class IterJetTrellis(IterTrellis):
     def __init__(self, propagate_values_up: bool, max_nodes: int,leaves = None,  min_invM=None, Lambda= None, LambdaRoot=None):
         super(IterJetTrellis, self).__init__(propagate_values_up=propagate_values_up, max_nodes=max_nodes)
         # self.graph = graph
+        st = time.time()
         self.leaves_momentum = leaves
         print("self.leaves_momentum = ", self.leaves_momentum)
         self.momentum = dict()
@@ -1049,6 +1134,9 @@ class IterJetTrellis(IterTrellis):
         self.set_root(frozenset(range(self.leaves_momentum.shape[0])))
         logging.info('Root node has elements: %s', self.clusters[self.root])
         logging.info('Root node is id: %s', self.root)
+
+        en_t = time.time()- st
+        logging.info('Loading class time: %s', en_t)
 
     def record_node(self, elements: frozenset) -> int:
         """Get the node corresponding to the given elements, create new id if needed.
@@ -1098,7 +1186,10 @@ class IterJetTrellis(IterTrellis):
              # if not self.is_leaf(ch_i):
             # print('Is leaf', self.is_leaf(ch_i))
             # print("elements", elements)
-            upper_bound = self.upperBoundInners(elements) + self.upperBoundOuters(elements)
+            upper_bound =  self.upperBoundOuters(elements)
+
+            if len(elements)>2:
+                upper_bound += self.upperBoundInners(elements)
 
         return - upper_bound
 
@@ -1137,6 +1228,7 @@ class IterJetTrellis(IterTrellis):
 
         return split_llh
 
+
     def upperBoundOuters(self, elements: frozenset):
         """
         We find the minimum possible value for t_p of a leaf. We do this by getting the max t among all leaves and calculate tp_min=t_p and t2=(sqrt(tp)-sqrt(t_max))^2. We could improve this by replacing t_cut by  the 1st t_p that is above t_cut among all pairings of leaves.
@@ -1146,14 +1238,56 @@ class IterJetTrellis(IterTrellis):
         leaves = np.asarray([self.momentum[frozenset({elem})] for elem in elements])
         Nleaves = len(leaves)
 
-        tmax = max([leaves[k][0] ** 2 - np.linalg.norm(leaves[k][1::]) ** 2
-                    for k in range(len(leaves))
-                    ])
-        tp2 = (np.sqrt(t_cut) - np.sqrt(tmax)) ** 2
+        tpi = np.array([
+            np.sort([(leaves[k] + leaves[j])[0] ** 2 - np.linalg.norm((leaves[k] + leaves[j])[1::]) ** 2
+
+                     for j in np.concatenate((np.arange(k), np.arange(k + 1, len(leaves))))])
+            for k in range(len(leaves))
+        ])
+
+        masses_sq = np.sort(
+            [leaves[k][0] ** 2 - np.linalg.norm(leaves[k][1::]) ** 2
+             for k in range(len(leaves))
+             ])
+
+        idxs = [np.searchsorted(entry, t_cut) for entry in tpi]
+        #     print(idxs)
+        #     print(tpi)
+        t_min = np.sort([tpi[pos, idx] if idx < (Nleaves - 1) else t_cut for pos, idx in enumerate(idxs)])
+        t_min2 = t_min[np.searchsorted(t_min, t_cut)::]
+        #     print(t_min2)
+        if len(t_min) > len(t_min2):
+            t_min2 = np.concatenate((t_min2, t_min2[-1] * (len(t_min) - len(t_min2))))
+
+        tp2 = (np.sqrt(t_min2[0]) - np.sqrt(masses_sq)) ** 2
+
+        #     tmax=    max( [ leaves[k][0]**2-np.linalg.norm(leaves[k][1::])**2
+        #            for k in range(len(leaves))
+        #           ])
+        #     tp2 = (np.sqrt(t_cut) - np.sqrt(tmax)) ** 2
 
         llh = -np.log(1 - np.exp(- lam)) + np.log(1 - np.exp(-lam * t_cut / tp2))
 
-        return llh * Nleaves
+        return sum(llh)
+
+
+    # def upperBoundOuters(self, elements: frozenset):
+    #     """
+    #     We find the minimum possible value for t_p of a leaf. We do this by getting the max t among all leaves and calculate tp_min=t_p and t2=(sqrt(tp)-sqrt(t_max))^2. We could improve this by replacing t_cut by  the 1st t_p that is above t_cut among all pairings of leaves.
+    #     """
+    #     lam = self.Lambda
+    #     t_cut = self.min_invM
+    #     leaves = np.asarray([self.momentum[frozenset({elem})] for elem in elements])
+    #     Nleaves = len(leaves)
+    #
+    #     tmax = max([leaves[k][0] ** 2 - np.linalg.norm(leaves[k][1::]) ** 2
+    #                 for k in range(len(leaves))
+    #                 ])
+    #     tp2 = (np.sqrt(t_cut) - np.sqrt(tmax)) ** 2
+    #
+    #     llh = -np.log(1 - np.exp(- lam)) + np.log(1 - np.exp(-lam * t_cut / tp2))
+    #
+    #     return llh * Nleaves
 
 
 
@@ -1176,25 +1310,134 @@ class IterJetTrellis(IterTrellis):
         #     print("subjetMass2 =", subjetMass2)
 
         """Find minimum invariant mass for each leaf possible parent, i.e. for each leaf find the pair that minimizes the invariant mass"""
-        tpi = [
-            min([(leaves[k] + leaves[j])[0] ** 2 - np.linalg.norm((leaves[k] + leaves[j])[1::]) ** 2
-                 for j in np.concatenate((np.arange(k), np.arange(k + 1, len(leaves))))])
+        tpi = np.array([
+            np.sort([(leaves[k] + leaves[j])[0] ** 2 - np.linalg.norm((leaves[k] + leaves[j])[1::]) ** 2
+
+                     for j in np.concatenate((np.arange(k), np.arange(k + 1, len(leaves))))])
             for k in range(len(leaves))
-        ]
+        ])
 
-        tpi = np.sort(tpi)
-        # #    Find the smallest tpi that is greater than t_cut
-        idx = np.searchsorted(tpi, t_cut)
-        if idx >= len(tpi) - 1:
-            t_min = t_cut
-        else:
-            t_min = tpi[idx]
+        masses_sq = np.sort(
+            [leaves[k][0] ** 2 - np.linalg.norm(leaves[k][1::]) ** 2
+             for k in range(len(leaves))
+             ])
+
+        idxs = [np.searchsorted(entry, t_cut) for entry in tpi]
+        #     print(idxs)
+        #     print(tpi)
+        t_min = np.sort([tpi[pos, idx] if idx < (Nleaves - 1) else t_cut for pos, idx in enumerate(idxs)])
+        t_min2 = t_min[np.searchsorted(t_min, t_cut)::]
+        #     print(t_min2)
+        if len(t_min) > len(t_min2):
+            t_min2 = np.concatenate((t_min2, t_min2[-1] * (len(t_min) - len(t_min2))))
+        #     print(t_min)
+
+        #     values=[]
+        #     print(np.concatenate(np.empty(),t_min[0:Nleaves//2]))
+        values = t_min2[0:Nleaves // 2]
+        i = 3
+        j = Nleaves % 2 + Nleaves // 2
+        #     print('values=',values)
+
+        while len(values) < Nleaves - 2:
+            values = np.concatenate((values, [max(t_cut + t_min2[0] * (j - 2), sum(masses_sq[0:i]))] * (j // 2)))
+            j = j // 2 + j % 2
+            i += 1
+
+        # These are inner nodes so the 1st tp is for 3 elements
+        #     tp_Max = t_min2[-1:]
+        #     print(tp_Max)
+
+        #     t_pairMax = np.max([
+        #                 np.max([   (leaves[k]+leaves[j])[0]**2-np.linalg.norm((leaves[k]+leaves[j])[1::])**2
+
+        #                 for j in np.concatenate((np.arange(k),np.arange(k+1,len(leaves)))) ])
+        #            for k in range(len(leaves))
+        #           ])
+
+        k = 2
+        #     t_prev = 3* t_pairMax+masses_sq[-(k+1)]
+        t_prev = 3 * (3 * masses_sq[-(k - 1)] + masses_sq[-(k)]) + masses_sq[-(k + 1)]
+        tp_Max = [min(t_prev, subjetMass2)]
+        while len(tp_Max) < Nleaves - 2:
+            k += 1
+            t_prev = 3 * t_prev + masses_sq[-(k + 1)]
+            tp_Max = np.concatenate((tp_Max, [min(t_prev, subjetMass2)]))
+        #         print('values=',values)
+        #         print(j)
+        #         print(i)
+        #     values=np.asarray(values)
+
+        #     print('tp_Max= ',tp_Max)
+        #     print('jetMass2 = ',jetMass2)
+        #     print('---------------')
+
+        if len(values) != len(tp_Max):
+            print('Nleaves = ', Nleaves)
+            print('len(values) =', len(values))
+            print(len(tp_Max))
+
+        llh = -np.log(1 - np.exp(- lam)) + np.log(lam) - np.log(values + t_min2[0]) - lam * values / tp_Max
+
+        return sum(llh[0:len(leaves) - 2]) + (len(leaves) - 1) * np.log(1 / (4 * np.pi))
 
 
-        llh = -np.log(1 - np.exp(- lam)) + np.log(lam) - np.log(t_min) - lam * t_min / subjetMass2
-
-        # if elements == self.clusters[self.root]:
-        #     llhRoot = -np.log(1 - np.exp(- lamRoot)) + np.log(lamRoot) - np.log(subjetMass2) - lamRoot * t_min / subjetMass2
-
-        # return llhRoot + (len(leaves) - 2) * llh + (Nleaves - 1) * np.log(1 / (4 * np.pi))
-        return (len(leaves) - 2) * ( llh + np.log(1 / (4 * np.pi)) )
+        # def upperBoundInners(self, elements: frozenset):
+    #     """ Get upper bound on logLH of all inner nodes.
+    #     We bound t_p in the exponential by "jet mass" which is the invariant mass of the sum of the leaves under each subtree.
+    #     We bound t_p in the denominator and t in the exponential by the max{min tp among all leaves pairings, t_cut}. A better bound but more time consuming would be to get the 1st t_p that is above t_cut. These are inner nodes, so the minimum possible value of t_p (their parent) is given by the minimum pairing of leaves above t_cut, regardless of the subtlety of t1=t_p and t2=(sqrt(tp)-sqrt(t_max))^2. Because in the worst case scenario t_p=t and we have t>t_cut.
+    #     """
+    #     lam = self.Lambda
+    #     lamRoot = self.LambdaRoot
+    #     t_cut = self.min_invM
+    #     leaves = np.asarray([self.momentum[frozenset({elem})] for elem in elements])
+    #     # print("Leaves in current bound = ", leaves)
+    #     # print("All leaves = ", self.leaves_momentum )
+    #     # print("Leaves 0in bound = ", leaves[0])
+    #     Nleaves = len(leaves)
+    #
+    #     subjet_vec = sum(leaves)
+    #     subjetMass2 = subjet_vec[0] ** 2 - np.linalg.norm(subjet_vec[1::]) ** 2
+    #     #     print("subjetMass2 =", subjetMass2)
+    #
+    #     """Find minimum invariant mass for each leaf possible parent, i.e. for each leaf find the pair that minimizes the invariant mass"""
+    #     # tpi = [
+    #     #     min([(leaves[k] + leaves[j])[0] ** 2 - np.linalg.norm((leaves[k] + leaves[j])[1::]) ** 2
+    #     #          for j in np.concatenate((np.arange(k), np.arange(k + 1, len(leaves))))])
+    #     #     for k in range(len(leaves))
+    #     # ]
+    #
+    #     # tpi = np.sort(tpi)
+    #     # # #    Find the smallest tpi that is greater than t_cut
+    #     # idx = np.searchsorted(tpi, t_cut)
+    #     # if idx >= len(tpi) - 1:
+    #     #     t_min = t_cut
+    #     # else:
+    #     #     t_min = tpi[idx]
+    #     #
+    #     #
+    #     # llh = -np.log(1 - np.exp(- lam)) + np.log(lam) - np.log(t_min) - lam * t_min / subjetMass2
+    #     #
+    #     # # if elements == self.clusters[self.root]:
+    #     # #     llhRoot = -np.log(1 - np.exp(- lamRoot)) + np.log(lamRoot) - np.log(subjetMass2) - lamRoot * t_min / subjetMass2
+    #     #
+    #     # # return llhRoot + (len(leaves) - 2) * llh + (Nleaves - 1) * np.log(1 / (4 * np.pi))
+    #     # return  (len(leaves) - 2) * llh + (len(leaves) - 1) * np.log(1 / (4 * np.pi))
+    #     #     # (len(leaves) - 2) * ( llh + np.log(1 / (4 * np.pi)) )
+    #
+    #     tpi = np.array([
+    #         np.sort([(leaves[k] + leaves[j])[0] ** 2 - np.linalg.norm((leaves[k] + leaves[j])[1::]) ** 2
+    #
+    #                  for j in np.concatenate((np.arange(k), np.arange(k + 1, len(leaves))))])
+    #         for k in range(len(leaves))
+    #     ])
+    #
+    #     idxs = [np.searchsorted(entry, t_cut) for entry in tpi]
+    #     #     print(idxs)
+    #     #     print(tpi)
+    #     t_min = np.sort([tpi[pos, idx] if idx < (Nleaves - 1) else t_cut for pos, idx in enumerate(idxs)])
+    #     #     print(t_min)
+    #
+    #     llh = -np.log(1 - np.exp(- lam)) + np.log(lam) - np.log(t_min) - lam * t_min / subjetMass2
+    #
+    #     return sum(llh[0:len(leaves) - 2]) + (len(leaves) - 1) * np.log(1 / (4 * np.pi))
