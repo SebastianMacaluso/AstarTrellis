@@ -371,7 +371,7 @@ class IterTrellis(object):
         """
         return len(self.children[i]) == 0 or len(self.pq[i]) == 0
 
-    def get_state(self, all_pairs_max_size=2):
+    def get_state(self, all_pairs_max_size=2, num_tries=4):
         """Return the best available (partial) hierarchical clustering.
 
         :return: hc - hierarchical clustering
@@ -398,7 +398,7 @@ class IterTrellis(object):
                 elements = self.clusters[i]
                 # assert len(elements) > 0
                 if len(elements) > 1:
-                    self.initialize(i, elements, all_pairs_max_size=all_pairs_max_size)
+                    self.initialize(i, elements, all_pairs_max_size=all_pairs_max_size, num_tries=num_tries)
             else:
                 logging.debug('visiting node %s - is iternal', i)
                 internals.append(i)
@@ -580,7 +580,7 @@ class IterTrellis(object):
 
 
 
-    def initialize(self, i, elems, all_pairs_max_size=2):
+    def initialize(self, i, elems, all_pairs_max_size=2, num_tries=4):
         """Initialize the node i.
 
         This explores the node i. It sets the priority queue of i accordingly. If len(elems)==1, doe not do anything
@@ -593,7 +593,7 @@ class IterTrellis(object):
         # logging.info('-------')
         # logging.info('node = %s, elem=%s', str(i),str(elems))
         # logging.info('-------')
-        ch = self.get_children(i, elems, all_pairs_max_size=all_pairs_max_size)
+        ch = self.get_children(i, elems, all_pairs_max_size=all_pairs_max_size, num_tries=num_tries)
         logging.debug('initialize node %s with %s children', i, len(ch))
 
         # t_init = time.time()
@@ -627,7 +627,7 @@ class IterTrellis(object):
         # return time.time()- t_init
 
 
-    def get_children(self, i, elems, all_pairs_max_size=2):
+    def get_children(self, i, elems, all_pairs_max_size=2, num_tries = 4):
         """Gives the children of node i that has elements elems.
 
         In this version, it grabs all 2 partitions if they are not there
@@ -643,7 +643,7 @@ class IterTrellis(object):
             return self.children[i]
         else:
             # self.children[i] = self._get_children(list(elems))  # all_two_partitions(list(elems))
-            self.children[i] = self._top_k_children(list(elems),all_pairs_max_size=all_pairs_max_size, num_tries=10)
+            self.children[i] = self._top_k_children(list(elems),all_pairs_max_size=all_pairs_max_size, num_tries=num_tries)
 
                     # self.update_from_children(i, (ch_l, ch_r))
             return self.children[i]
@@ -713,7 +713,7 @@ class IterTrellis(object):
             self.MAP_f = g+h
             self.MAP_hc = hc
 
-    def _execute_search(self, max_steps=np.Inf, all_pairs_max_size=2):
+    def _execute_search(self, max_steps=np.Inf, all_pairs_max_size=2, num_tries=4):
         """Run A* Search.
         We aren't using max_steps ?
 
@@ -741,7 +741,7 @@ class IterTrellis(object):
                 g = -1  # something that is not zero
                 h = -1  # something that is not zero
 
-            hc, internals, lvs, parent2child = self.get_state(all_pairs_max_size=all_pairs_max_size)
+            hc, internals, lvs, parent2child = self.get_state(all_pairs_max_size=all_pairs_max_size, num_tries=num_tries)
             is_goal_state = self.is_goal_state(hc, internals, lvs)
             logging.debug("-------------------------------------------")
 
@@ -1139,7 +1139,7 @@ class IterTrellis(object):
         #         if ch in hc:
         #             for f, g, h, cl, cr in self.pq[i]:
 
-    def execute_search(self, max_steps=np.Inf, num_matches=0, max_iter=np.Inf, all_pairs_max_size=2):
+    def execute_search(self, max_steps=np.Inf, num_matches=0, max_iter=np.Inf, all_pairs_max_size=2, num_tries=4):
         """Runs A* search.
 
         If num_matches > 0, after A* completes, extend the queues along the
@@ -1152,7 +1152,7 @@ class IterTrellis(object):
         :return: hc, f - the clustering and f values
         """
         logging.info("Max steps = %s", max_steps)
-        hc, f , steps = self._execute_search(max_steps=max_steps, all_pairs_max_size=all_pairs_max_size)
+        hc, f , steps = self._execute_search(max_steps=max_steps, all_pairs_max_size=all_pairs_max_size,num_tries=num_tries )
         logging.info('RESULT -- f: %s -- round %s', f, 1)
         wandb.log({"search_f": f, "search_i": 1})
 
@@ -1164,7 +1164,7 @@ class IterTrellis(object):
             self.current_extension_num = i
             # self.reset()
             self.extend_hc_alt()   # This resets values but doesn't extend search
-            hc, f_i, steps = self._execute_search(max_steps=max_steps)
+            hc, f_i, steps = self._execute_search(max_steps=max_steps, num_tries=num_tries)
             logging.info('RESULT -- f: %s -- round %s', f_i, i)
             wandb.log({"search_f": f_i, "search_i": i+1})
             if f == f_i:
@@ -1330,7 +1330,7 @@ class IterJetTrellis(IterTrellis):
         root= list(root)
         logging.debug("root = %s", root)
         # k=0
-        for _ in range(num_tries):
+        for _ in range(num_tries[0]):
             np.random.shuffle(root)
             i = np.random.randint(1,len(root) - 1)
             # i += 1
@@ -1348,7 +1348,8 @@ class IterJetTrellis(IterTrellis):
                 # if len(cuts) == all_pairs_max_size:
                 #     heappushpop()
             # k+=1
-        cuts = sorted(cuts, key=lambda x: x[0])[0:k_max]
+        # cuts = sorted(cuts, key=lambda x: x[0])[0:k_max]
+        cuts = sorted(cuts, key=lambda x: x[0])[0:num_tries[1]]
         logging.debug("cuts=%s",cuts)
         logging.debug("lenght cuts = %s", len(cuts))
         return [(y,z) for (x,y,z) in cuts]
