@@ -707,9 +707,13 @@ class IterTrellis(object):
         logging.debug('-------==============-------')
         self.push(p, (g + h, g, h, ch_l, ch_r))
 
+        if p==self.root:
+            logging.debug("Updated value for root node = %s", g+h)
+            logging.debug("===++++====" * 10)
         if p==self.root and h==0 and is_goal_state and self.MAP_f > g+h:
             # logging.info("root %s | p = %s | is goal state = %s",self.root,p, is_goal_state)
-            logging.debug("g = %s | h=%s", g,h)
+            logging.debug("New MAP value for root node g = %s | h=%s", g,h)
+            logging.debug("===++++===="*10)
             self.MAP_f = g+h
             self.MAP_hc = hc
 

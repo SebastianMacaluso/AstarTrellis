@@ -12,14 +12,14 @@ from absl import flags
 from absl import logging
 from absl import app
 
-from AstarTrellis.iter_trellis_maxSteps import IterCCTrellis, IterJetTrellis
+from AstarTrellis.iter_trellis_approx import IterCCTrellis, IterJetTrellis
 # from .iter_trellis3 import all_two_partitions, k_random_2_cuts, top_k_of_n_2_cuts
 
 
 
-NleavesMin=9
-# filename = "test_" + str(NleavesMin) + "_jets_gt_BS.pkl"
-filename = "test_" + str(NleavesMin) + "_jets.pkl"
+NleavesMin=25
+filename = "test_" + str(NleavesMin) + "_jets_gt_BS.pkl"
+# filename = "test_" + str(NleavesMin) + "_jets.pkl"
 powerset = 2**(NleavesMin)
 
 # flags.DEFINE_string('trellis_class', 'IterJetTrellis', 'Type of Algorithm')
@@ -28,9 +28,9 @@ flags.DEFINE_string('trellis_class', 'Approx_IterJetTrellis', 'Type of Algorithm
 flags.DEFINE_string("wandb_dir", "/Users/sebastianmacaluso/Documents/A_star", "wandb directory - If running seewp process, run it from there")
 flags.DEFINE_string('dataset_dir', "../../data/Ginkgo/input/", "dataset dir ")
 flags.DEFINE_string('dataset', filename, 'dataset filename')
-flags.DEFINE_integer('max_steps', 100000000000000, 'Maximum number of steps')
-flags.DEFINE_integer('all_pairs_max_size', 6, 'Maximum number of 2 partitions to expand each node')
-flags.DEFINE_multi_integer('num_tries', [5,2], '')
+flags.DEFINE_integer('max_steps', 2000, 'Maximum number of steps')
+flags.DEFINE_integer('all_pairs_max_size', 9, 'Maximum number of elements of a node to run the exact algorithm - switch to approx. algo for more elements')
+flags.DEFINE_multi_integer('num_tries', [10,4], '')
 
 flags.DEFINE_integer('max_nodes', powerset + 10, 'nodes')
 flags.DEFINE_string('exp_name', 'AStar', 'name')
@@ -66,15 +66,15 @@ def main(argv):
     # os.makedirs(outprefix, exist_ok=True)
     np.random.seed(FLAGS.seed)
 
-    gt_jets = load_jets()
-    # gt_jets, BS_jets = load_jets()
+    # gt_jets = load_jets()
+    gt_jets, BS_jets = load_jets()
 
     times=[]
     MAP = []
     steps =[]
     for i in range(1,2):
         gt_jet = gt_jets[i]
-        # BS_jet = BS_jets[i]
+        BS_jet = BS_jets[i]
         logging.info("Truth log LH = %s",sum(gt_jet["logLH"]))
 
         logging.info("test jet loaded ")
@@ -92,17 +92,17 @@ def main(argv):
                                  Lambda=gt_jet['Lambda'],
                                  LambdaRoot=gt_jet['LambdaRoot'])
 
-        # trellis.Add_BeamSearchHC( BS_jet,
-        #                  BS_jet['root_id'],
-        #                  trellis.clusters[trellis.root])
+        trellis.Add_BeamSearchHC( BS_jet,
+                         BS_jet['root_id'],
+                         trellis.clusters[trellis.root])
 
             # #Define _get_children as all 2 partitions
             # if FLAGS.child_func == 'all_two_partitions':
             #     # _get_children = all_two_partitions
             #
             #     trellis._get_children = all_two_partitions
-        # logging.info("gt jet LH = %f | BS jet LH= %s ", sum(gt_jet["logLH"]), sum(BS_jet["logLH"]))
-        logging.info("gt jet LH = %f  ", sum(gt_jet["logLH"]))
+        logging.info("gt jet LH = %f | BS jet LH= %s ", sum(gt_jet["logLH"]), sum(BS_jet["logLH"]))
+        # logging.info("gt jet LH = %f  ", sum(gt_jet["logLH"]))
 
         if FLAGS.trellis_class == 'Approx_IterJetTrellis':
             pass
