@@ -175,6 +175,7 @@ class IterTrellis(object):
     def __init__(self, max_nodes, propagate_values_up):
         pClass_st = time.time()
         # children[i] gives the kids of node i
+        self.nodes_explored = 0
         self.children = [[] for _ in range(max_nodes)]
         self.mapv = np.zeros(max_nodes, dtype=np.float32) # MAP vertices
         self.arg_mapv = [[] for _ in range(max_nodes)] # Children of mapv
@@ -392,12 +393,15 @@ class IterTrellis(object):
             logging.debug('visiting node %s', i)
 
             # if self.is_leaf(i): # leaf at current state
-            if (len(self.pq[i])<2 and len(self.clusters[i])>2 ) or self.is_leaf(i):  # leaf at current state
+            if (len(self.pq[i])<2 and len(self.clusters[i])>2 ) or self.is_leaf(i):  # leaf at current state (we do this because we already added beam search nodes)
+
                 logging.debug('visiting node %s - is leaf', i)
                 lvs.append(i)
                 elements = self.clusters[i]
                 # assert len(elements) > 0
                 if len(elements) > 1:
+                    # if self.is_leaf(i):
+                    self.nodes_explored += 1
                     self.initialize(i, elements, all_pairs_max_size=all_pairs_max_size, num_tries=num_tries)
             else:
                 logging.debug('visiting node %s - is iternal', i)

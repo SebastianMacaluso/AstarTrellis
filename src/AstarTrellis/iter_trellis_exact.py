@@ -174,6 +174,7 @@ class IterTrellis(object):
     def __init__(self, max_nodes, propagate_values_up):
         pClass_st = time.time()
         # children[i] gives the kids of node i
+        self.nodes_explored =0
         self.children = [[] for _ in range(max_nodes)]
         self.mapv = np.zeros(max_nodes, dtype=np.float32) # MAP vertices
         self.arg_mapv = [[] for _ in range(max_nodes)] # Children of mapv
@@ -394,6 +395,7 @@ class IterTrellis(object):
                 elements = self.clusters[i]
                 # assert len(elements) > 0
                 if len(elements) > 1:
+                    self.nodes_explored+=1
                     self.initialize(i, elements)
             else:
                 logging.debug('visiting node %s - is iternal', i)

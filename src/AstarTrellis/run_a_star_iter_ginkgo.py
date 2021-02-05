@@ -12,10 +12,10 @@ from absl import flags
 from absl import logging
 from absl import app
 
-from AstarTrellis.iter_trellis3 import IterCCTrellis, IterJetTrellis
+from AstarTrellis.iter_trellis_exact import IterCCTrellis, IterJetTrellis
 # from .iter_trellis3 import all_two_partitions, k_random_2_cuts, top_k_of_n_2_cuts
 
-from AstarTrellis.iter_trellis_maxSteps import IterJetTrellis as ApproxIterJetTrellis
+from AstarTrellis.iter_trellis_approx import IterJetTrellis as ApproxIterJetTrellis
 
 
 NleavesMin=9
@@ -29,7 +29,7 @@ flags.DEFINE_string('trellis_class', 'IterJetTrellis', 'Type of Algorithm')
 flags.DEFINE_string("wandb_dir", "/Users/sebastianmacaluso/Documents/A_star", "wandb directory - If running seewp process, run it from there")
 flags.DEFINE_string('dataset_dir', "../../data/Ginkgo/input/", "dataset dir ")
 flags.DEFINE_string('dataset', "test_" + str(NleavesMin) + "_jets.pkl", 'dataset filename')
-flags.DEFINE_integer('max_steps', 4000, 'Maximum number of steps')
+flags.DEFINE_integer('max_steps', 40, 'Maximum number of steps')
 flags.DEFINE_integer('max_nodes', powerset + 10, 'nodes')
 flags.DEFINE_string('exp_name', 'AStar', 'name')
 flags.DEFINE_string('output', 'exp_out', 'output directory')
@@ -67,7 +67,8 @@ def main(argv):
     times=[]
     MAP = []
     steps =[]
-    for i in range(1,2):
+    nodes_explored=[]
+    for i in range(1,3):
         gt_jet = gt_jets[i]
         logging.info("Truth log LH = %s",sum(gt_jet["logLH"]))
 
@@ -123,16 +124,19 @@ def main(argv):
         logging.info("-------------------------------------------")
         logging.info(f'FINAL HC:{hc}')
         logging.info(f'FINAL f ={ - f}')
+        logging.info("Number of nodes explored =  %s", trellis.nodes_explored)
 
 
         times.append(endTime)
         MAP.append(- f)
         steps.append(step)
+        nodes_explored.append( trellis.nodes_explored)
 
     logging.info("==============================================")
     logging.info(f"Times = {times}")
     logging.info(f"MAP values ={ MAP}")
     logging.info(f"Steps = {steps}")
+    logging.info("Number of nodes explored =  %s", nodes_explored)
 
 def load_jets():
     #

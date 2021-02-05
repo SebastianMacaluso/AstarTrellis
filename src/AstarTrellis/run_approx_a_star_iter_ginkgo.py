@@ -17,7 +17,7 @@ from AstarTrellis.iter_trellis_approx import IterCCTrellis, IterJetTrellis
 
 
 
-NleavesMin=25
+NleavesMin=9
 filename = "test_" + str(NleavesMin) + "_jets_gt_BS.pkl"
 # filename = "test_" + str(NleavesMin) + "_jets.pkl"
 powerset = 2**(NleavesMin)
@@ -72,7 +72,8 @@ def main(argv):
     times=[]
     MAP = []
     steps =[]
-    for i in range(1,2):
+    nodes_explored = []
+    for i in range(1,3):
         gt_jet = gt_jets[i]
         BS_jet = BS_jets[i]
         logging.info("Truth log LH = %s",sum(gt_jet["logLH"]))
@@ -133,16 +134,19 @@ def main(argv):
         logging.info("-------------------------------------------")
         logging.info(f'FINAL HC:{hc}')
         logging.info(f'FINAL f ={- f}')
+        logging.info("Number of nodes explored =  %s", trellis.nodes_explored)
 
 
         times.append(endTime)
         MAP.append( - f)
         steps.append(step)
+        nodes_explored.append(trellis.nodes_explored)
 
     logging.info("==============================================")
     logging.info(f"Times = {times}")
     logging.info(f"MAP values ={MAP}")
     logging.info(f"Steps = {steps}")
+    logging.info("Number of nodes explored =  %s", nodes_explored)
 
 def load_jets():
     #
