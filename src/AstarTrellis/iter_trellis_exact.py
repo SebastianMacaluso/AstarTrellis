@@ -358,6 +358,7 @@ class IterTrellis(object):
     def set_root(self, elems):
         self.root = self.record_node(elems)
         self.clusters[self.root] = elems
+        self.nodes_explored += int(self.root) #Add the number of elements to the nodes explored
 
     def is_leaf(self, i):
         """ Returns true if i is a leaf.
