@@ -175,6 +175,7 @@ class IterTrellis(object):
         pClass_st = time.time()
         # children[i] gives the kids of node i
         self.nodes_explored =0
+        self.Ntrees = 0
         self.children = [[] for _ in range(max_nodes)]
         self.mapv = np.zeros(max_nodes, dtype=np.float32) # MAP vertices
         self.arg_mapv = [[] for _ in range(max_nodes)] # Children of mapv
@@ -684,6 +685,7 @@ class IterTrellis(object):
                 logging.debug('Step=%s | num_leaves=%s | max_leaves_so_far=%s | f=%s | g=%s | h=%s',
                              step, len(lvs),
                              most_leaves, f, g, h)
+                self.Ntrees += 1
 
                 # print()
                 # for x in hc:
@@ -703,7 +705,7 @@ class IterTrellis(object):
                 wandb.log({'num_leaves': len(lvs), 'max_leaves_so_far': most_leaves,
                            'total_time': time_sum, 'avg_time_per_step': time_sum / (step + 1),
                            'steps': step})
-
+                self.Ntrees+=1
 
                 # logging.debug('leaves: %s', str(lvs))
                 # print('top of root:\n%s' % '\n'.join([str(len(self.pq[self.root])) for i in range(10)]))

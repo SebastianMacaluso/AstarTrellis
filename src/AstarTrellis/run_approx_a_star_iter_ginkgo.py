@@ -17,7 +17,7 @@ from AstarTrellis.iter_trellis_approx import IterCCTrellis, IterJetTrellis
 
 
 
-NleavesMin=9
+NleavesMin=15
 filename = "test_" + str(NleavesMin) + "_jets_gt_BS.pkl"
 # filename = "test_" + str(NleavesMin) + "_jets.pkl"
 powerset = 2**(NleavesMin)
@@ -28,9 +28,12 @@ flags.DEFINE_string('trellis_class', 'Approx_IterJetTrellis', 'Type of Algorithm
 flags.DEFINE_string("wandb_dir", "/Users/sebastianmacaluso/Documents/A_star", "wandb directory - If running seewp process, run it from there")
 flags.DEFINE_string('dataset_dir', "../../data/Ginkgo/input/", "dataset dir ")
 flags.DEFINE_string('dataset', filename, 'dataset filename')
-flags.DEFINE_integer('max_steps', 2000, 'Maximum number of steps')
-flags.DEFINE_integer('all_pairs_max_size', 9, 'Maximum number of elements of a node to run the exact algorithm - switch to approx. algo for more elements')
-flags.DEFINE_multi_integer('num_tries', [10,4], '')
+flags.DEFINE_integer('max_steps', 50000, 'Maximum number of steps')
+flags.DEFINE_integer('all_pairs_max_size', 8, 'Maximum number of elements of a node to run the exact algorithm - switch to approx. algo for more elements')
+flags.DEFINE_multi_integer('num_tries', [15,5], '')
+flags.DEFINE_boolean("exact_heuristic_proof", False, "If true run algorithm with exact heuristic")
+flags.DEFINE_boolean("approx_heuristic", True, "If true run algorithm with approximate heuristic, if False then run it with a supposedly exact heuristic check on plots with up to 9 elements but with no proof")
+
 
 flags.DEFINE_integer('max_nodes', powerset + 10, 'nodes')
 flags.DEFINE_string('exp_name', 'AStar', 'name')
@@ -73,7 +76,8 @@ def main(argv):
     MAP = []
     steps =[]
     nodes_explored = []
-    for i in range(1,3):
+    Ntrees = []
+    for i in range(1,2):
         gt_jet = gt_jets[i]
         BS_jet = BS_jets[i]
         logging.info("Truth log LH = %s",sum(gt_jet["logLH"]))
@@ -86,7 +90,9 @@ def main(argv):
         startTime = time.time()
 
         # if FLAGS.trellis_class == 'IterJetTrellis':
-        trellis = IterJetTrellis(leaves=gt_jet['leaves'],
+        trellis = IterJetTrellis(exact_heuristic_proof = FLAGS.exact_heuristic_proof,
+                                approx_heuristic = FLAGS.approx_heuristic,
+                                 leaves=gt_jet['leaves'],
                                  propagate_values_up=FLAGS.propagate_values_up,
                                  max_nodes=FLAGS.max_nodes,
                                  min_invM=gt_jet['pt_cut'],
@@ -135,18 +141,21 @@ def main(argv):
         logging.info(f'FINAL HC:{hc}')
         logging.info(f'FINAL f ={- f}')
         logging.info("Number of nodes explored =  %s", trellis.nodes_explored)
+        logging.info("Number of trees explored =  %s", trellis.Ntrees)
 
 
         times.append(endTime)
         MAP.append( - f)
         steps.append(step)
         nodes_explored.append(trellis.nodes_explored)
+        Ntrees.append(trellis.Ntrees)
 
     logging.info("==============================================")
     logging.info(f"Times = {times}")
     logging.info(f"MAP values ={MAP}")
     logging.info(f"Steps = {steps}")
     logging.info("Number of nodes explored =  %s", nodes_explored)
+    logging.info("Number of trees explored =  %s", Ntrees)
 
 def load_jets():
     #

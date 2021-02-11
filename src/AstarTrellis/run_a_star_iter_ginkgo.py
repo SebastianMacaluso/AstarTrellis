@@ -68,6 +68,7 @@ def main(argv):
     MAP = []
     steps =[]
     nodes_explored=[]
+    Ntrees = []
     for i in range(1,3):
         gt_jet = gt_jets[i]
         logging.info("Truth log LH = %s",sum(gt_jet["logLH"]))
@@ -125,18 +126,21 @@ def main(argv):
         logging.info(f'FINAL HC:{hc}')
         logging.info(f'FINAL f ={ - f}')
         logging.info("Number of nodes explored =  %s", trellis.nodes_explored)
+        logging.info("Number of trees explored =  %s", trellis.Ntrees)
 
 
         times.append(endTime)
         MAP.append(- f)
         steps.append(step)
         nodes_explored.append( trellis.nodes_explored)
+        Ntrees.append(trellis.Ntrees)
 
     logging.info("==============================================")
     logging.info(f"Times = {times}")
     logging.info(f"MAP values ={ MAP}")
     logging.info(f"Steps = {steps}")
     logging.info("Number of nodes explored =  %s", nodes_explored)
+    logging.info("Number of trees explored =  %s", Ntrees)
 
 def load_jets():
     #

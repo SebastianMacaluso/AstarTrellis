@@ -176,6 +176,7 @@ class IterTrellis(object):
         pClass_st = time.time()
         # children[i] gives the kids of node i
         self.nodes_explored = 0
+        self.Ntrees = 0
         self.children = [[] for _ in range(max_nodes)]
         self.mapv = np.zeros(max_nodes, dtype=np.float32) # MAP vertices
         self.arg_mapv = [[] for _ in range(max_nodes)] # Children of mapv
@@ -763,7 +764,7 @@ class IterTrellis(object):
                 logging.debug('Step=%s | num_leaves=%s | max_leaves_so_far=%s | f=%s | g=%s | h=%s',
                              step, len(lvs),
                              most_leaves, f, g, h)
-
+                self.Ntrees +=1
 
 
                 # print()
@@ -784,7 +785,7 @@ class IterTrellis(object):
                 wandb.log({'num_leaves': len(lvs), 'max_leaves_so_far': most_leaves,
                            'total_time': time_sum, 'avg_time_per_step': time_sum / (step + 1),
                            'steps': step})
-
+                self.Ntrees +=1
 
                 # logging.debug('leaves: %s', str(lvs))
                 # print('top of root:\n%s' % '\n'.join([str(len(self.pq[self.root])) for i in range(10)]))
@@ -1276,10 +1277,12 @@ class IterJetTrellis(IterTrellis):
 
     """We want to find a maximum likelihood, so to implement the priority queue with min heap, we flip all the likelihood values. Thus, we will find a solution for the minimum value of (- log LH). Note: we work with (- log LH) for practical purposes """
 
-    def __init__(self, propagate_values_up: bool, max_nodes: int,leaves = None,  min_invM=None, Lambda= None, LambdaRoot=None):
+    def __init__(self, propagate_values_up: bool, max_nodes: int, exact_heuristic_proof = False, approx_heuristic=False ,leaves = None,  min_invM=None, Lambda= None, LambdaRoot=None):
         super(IterJetTrellis, self).__init__(propagate_values_up=propagate_values_up, max_nodes=max_nodes)
         # self.graph = graph
         st = time.time()
+        self.exact_heuristic_proof = exact_heuristic_proof
+        self.approx_heuristic = approx_heuristic
         self.leaves_momentum = leaves
         # print("self.leaves_momentum = ", self.leaves_momentum)
         self.momentum = dict()
@@ -1459,7 +1462,7 @@ class IterJetTrellis(IterTrellis):
         return split_llh
 
 
-    def upperBoundOuters(self, elements: frozenset, proof=False):
+    def upperBoundOuters(self, elements: frozenset):
         """
         We find the minimum possible value for t_p of a leaf. We do this by getting the max t among all leaves and calculate tp_min=t_p and t2=(sqrt(tp)-sqrt(t_max))^2. We could improve this by replacing t_cut by  the 1st t_p that is above t_cut among all pairings of leaves.
         """
@@ -1507,7 +1510,7 @@ class IterJetTrellis(IterTrellis):
         t_min = np.sort([tpi[pos, idx] if idx < (Nleaves - 1) else t_cut for pos, idx in enumerate(idxs)])
 
 
-        if proof:
+        if self.exact_heuristic_proof:
             """Exact  result with proof"""
             tp2 = (np.sqrt(t_min) - np.sqrt(masses_sq[-1])) ** 2
         else:
@@ -1654,12 +1657,16 @@ class IterJetTrellis(IterTrellis):
         #     print('len(values) =', len(values))
         #     print(len(tp_Max))
 
-        if proof:
+        if self.exact_heuristic_proof:
             """Exact  result with proof"""
             values_p = [entry + masses_sq[0] if entry > masses_sq[-1] else entry for entry in values]
         else:
             """Exact  result with no proof"""
-            values_p = values + 2* t_min2[0]
+            if self.approx_heuristic:
+                values_p = values + 7* t_min2[0]
+            else:
+                """Supposedly Exact heuristic but with no proof, checked on plots of up to 9 leaves"""
+                values_p = values + 2 * t_min2[0]
 
         #     values_p= [(values[i]+masses_sq[i]) if values[i]>masses_sq[-1] else values[i] for i in range(len(values))]
         #     llh = -np.log(1 - np.exp(- lam)) + np.log(lam) - np.log(values+t_min2[0]) - lam * values / tp_Max
