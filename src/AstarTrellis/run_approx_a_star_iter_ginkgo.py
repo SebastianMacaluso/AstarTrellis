@@ -13,11 +13,12 @@ from absl import logging
 from absl import app
 
 from AstarTrellis.iter_trellis_approx import IterCCTrellis, IterJetTrellis
+# from AstarTrellis.iter_trellis_approx_fullbeam import IterCCTrellis, IterJetTrellis
 # from .iter_trellis3 import all_two_partitions, k_random_2_cuts, top_k_of_n_2_cuts
 
 
 
-NleavesMin=15
+NleavesMin=9
 filename = "test_" + str(NleavesMin) + "_jets_gt_BS.pkl"
 # filename = "test_" + str(NleavesMin) + "_jets.pkl"
 powerset = 2**(NleavesMin)
@@ -29,10 +30,10 @@ flags.DEFINE_string("wandb_dir", "/Users/sebastianmacaluso/Documents/A_star", "w
 flags.DEFINE_string('dataset_dir', "../../data/Ginkgo/input/", "dataset dir ")
 flags.DEFINE_string('dataset', filename, 'dataset filename')
 flags.DEFINE_integer('max_steps', 50000, 'Maximum number of steps')
-flags.DEFINE_integer('all_pairs_max_size', 8, 'Maximum number of elements of a node to run the exact algorithm - switch to approx. algo for more elements')
+flags.DEFINE_integer('all_pairs_max_size', 7, 'Maximum number of elements of a node to run the exact algorithm - switch to approx. algo for more elements')
 flags.DEFINE_multi_integer('num_tries', [15,5], '')
 flags.DEFINE_boolean("exact_heuristic_proof", False, "If true run algorithm with exact heuristic")
-flags.DEFINE_boolean("approx_heuristic", True, "If true run algorithm with approximate heuristic, if False then run it with a supposedly exact heuristic check on plots with up to 9 elements but with no proof")
+flags.DEFINE_boolean("approx_heuristic", False, "If true run algorithm with approximate heuristic, if False then run it with a supposedly exact heuristic check on plots with up to 9 elements but with no proof")
 
 
 flags.DEFINE_integer('max_nodes', powerset + 10, 'nodes')

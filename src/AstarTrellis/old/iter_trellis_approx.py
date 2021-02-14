@@ -394,9 +394,8 @@ class IterTrellis(object):
             hc.append(i)
             logging.debug('visiting node %s', i)
 
-            if not self.explored[i]:
             # if self.is_leaf(i): # leaf at current state
-            # if (len(self.pq[i])<2 and len(self.clusters[i])>2 ) or self.is_leaf(i):  # leaf at current state (we do this because we already added beam search nodes)
+            if (len(self.pq[i])<2 and len(self.clusters[i])>2 ) or self.is_leaf(i):  # leaf at current state (we do this because we already added beam search nodes)
 
                 logging.debug('visiting node %s - is leaf', i)
                 lvs.append(i)
@@ -406,15 +405,10 @@ class IterTrellis(object):
                     # if self.is_leaf(i):
                     self.nodes_explored += 1
                     self.initialize(i, elements, all_pairs_max_size=all_pairs_max_size, num_tries=num_tries)
-            # else:
-                # logging.debug('visiting node %s - is iternal', i)
-                # internals.append(i)
-
-            # if self.explored[i]:
             else:
                 logging.debug('visiting node %s - is iternal', i)
                 internals.append(i)
-
+            if self.explored[i]:
                 a, b = self.walk_down(i)
                 logging.debug('visiting node %s - has kids %s and %s', i, a, b)
                 parent2children[i] = [a, b]
@@ -575,9 +569,7 @@ class IterTrellis(object):
 
             # self.explored[i] = True  # Should this be outside the for loop? SM
             # heappush(self.pq[i], (g + h, g, h, ch_l, ch_r))
-            logging.debug("Node pq = %s", self.pq[self.elems2node[root]])
-            if not any(x== (g + h, g, h, ch_l, ch_r) for x in self.pq[self.elems2node[root]]): #Check if entry already in pq
-                self.push(self.elems2node[root], (g + h, g, h, ch_l, ch_r))
+            self.push(self.elems2node[root], (g + h, g, h, ch_l, ch_r))
 
             self.Add_BeamSearchHC(
                 jet,
